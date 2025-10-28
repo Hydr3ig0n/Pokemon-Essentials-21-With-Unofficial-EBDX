@@ -214,6 +214,7 @@ end
 #-------------------------------------------------------------------------------
 class Battle::Move::DisableTargetHealingMoves2Turns < Battle::Move
   def pbAdditionalEffect(user, target)
+    return if target.fainted?
     return if target.effects[PBEffects::HealBlock] > 0
     return if pbMoveFailedAromaVeil?(user, target, false)
     target.effects[PBEffects::HealBlock] = 2

@@ -24,7 +24,7 @@ class Battle::Move::GiveUserStatusToTarget < Battle::Move
         @battle.pbDisplay(_INTL("{1}'s frostbite was healed.", user.pbThis))
       end
     else
-      paldea_pbEffectAgainstTarget
+      paldea_pbEffectAgainstTarget(user, target)
     end
   end
 end
@@ -333,7 +333,7 @@ end
 class Battle::Move::HitTwoToFiveTimes < Battle::Move
   alias paldea_pbNumHits pbNumHits
   def pbNumHits(user, targets)
-    return 4 + rand(2) if user.hasActiveItem?(:LOADEDDICE)
+    return 4 + @battle.pbRandom(2) if user.hasActiveItem?(:LOADEDDICE)
     return paldea_pbNumHits(user, targets)
   end
 end
@@ -825,5 +825,108 @@ class Battle::Move::TargetUsesItsLastUsedMoveAgain < Battle::Move
       "StarmobilePoisonTarget",   # Noxious Torque
       "StarmobileSleepTarget"     # Wicked Torque
     )
+  end
+end
+
+#===============================================================================
+# Thief, Covet
+#===============================================================================
+# Records thieved item to user's stolen item data.
+#-------------------------------------------------------------------------------
+class Battle::Move::UserTakesTargetItem < Battle::Move
+  def pbEffectAfterAllHits(user, target)
+    return if user.wild?
+    return if user.fainted?
+    return if target.damageState.unaffected || target.damageState.substitute
+    return if !target.item || user.item
+    return if target.unlosableItem?(target.item)
+    return if user.unlosableItem?(target.item)
+    return if target.hasActiveAbility?(:STICKYHOLD) && !@battle.moldBreaker
+    itemName = target.itemName
+    user.setStolenItem(target.item_id, target)
+    user.item = target.item
+    if target.wild? && !user.initialItem && target.item == target.initialItem
+      user.setInitialItem(target.item)
+      target.pbRemoveItem
+    else
+      target.pbRemoveItem(false)
+    end
+    @battle.pbDisplay(_INTL("{1} stole {2}'s {3}!", user.pbThis, target.pbThis(true), itemName))
+    user.pbHeldItemTriggerCheck
+  end
+end
+
+#===============================================================================
+# Bestow
+#===============================================================================
+# Records bestowed item to target's stolen item data.
+#-------------------------------------------------------------------------------
+class Battle::Move::TargetTakesUserItem < Battle::Move
+  def pbEffectAgainstTarget(user, target)
+    itemName = user.itemName
+    target.setStolenItem(user.item_id, user)
+    target.item = user.item
+    if user.wild? && !target.initialItem && user.item == user.initialItem
+      target.setInitialItem(user.item)
+      user.pbRemoveItem
+    else
+      user.pbRemoveItem(false)
+    end
+    @battle.pbDisplay(_INTL("{1} received {2} from {3}!", target.pbThis, itemName, user.pbThis(true)))
+    target.pbHeldItemTriggerCheck
+  end
+end
+
+#===============================================================================
+# Trick, Switcheroo
+#===============================================================================
+# Records swapped items to user and target's stolen item data.
+#-------------------------------------------------------------------------------
+class Battle::Move::UserTargetSwapItems < Battle::Move
+  def pbEffectAgainstTarget(user, target)
+    oldUserItem = user.item
+    oldUserItemName = user.itemName
+    oldTargetItem = target.item
+    oldTargetItemName = target.itemName
+    user.setStolenItem(oldTargetItem, target)
+    user.item                             = oldTargetItem
+    user.effects[PBEffects::ChoiceBand]   = nil if !user.hasActiveAbility?(:GORILLATACTICS)
+    user.effects[PBEffects::Unburden]     = (!user.item && oldUserItem) if user.hasActiveAbility?(:UNBURDEN)
+    target.setStolenItem(oldUserItem, user)
+    target.item                           = oldUserItem
+    target.effects[PBEffects::ChoiceBand] = nil if !target.hasActiveAbility?(:GORILLATACTICS)
+    target.effects[PBEffects::Unburden]   = (!target.item && oldTargetItem) if target.hasActiveAbility?(:UNBURDEN)
+    if target.wild? && !user.initialItem && oldTargetItem == target.initialItem
+      user.setInitialItem(oldTargetItem)
+    end
+    @battle.pbDisplay(_INTL("{1} switched items with its opponent!", user.pbThis))
+    @battle.pbDisplay(_INTL("{1} obtained {2}.", user.pbThis, oldTargetItemName)) if oldTargetItem
+    @battle.pbDisplay(_INTL("{1} obtained {2}.", target.pbThis, oldUserItemName)) if oldUserItem
+    user.pbHeldItemTriggerCheck
+    target.pbHeldItemTriggerCheck
+  end
+end
+
+#===============================================================================
+# Bug Bite, Pluck
+#===============================================================================
+# Clears the target's initial berry as it is counted as "consumed."
+#-------------------------------------------------------------------------------
+class Battle::Move::UserConsumeTargetBerry < Battle::Move
+  def pbEffectAfterAllHits(user, target)
+    return if user.fainted? || target.fainted?
+    return if target.damageState.unaffected || target.damageState.substitute
+    return if !target.item || !target.item.is_berry? || target.unlosableItem?(target.item)
+    return if target.hasActiveAbility?(:STICKYHOLD) && !@battle.moldBreaker
+    item = target.item
+    itemName = target.itemName
+    user.setBelched
+    target.pbRemoveItem
+    if target.initialItem == item
+      @battle.initialItems[target.index & 1][target.pokemonIndex] = nil
+    end
+    @battle.pbDisplay(_INTL("{1} stole and ate its target's {2}!", user.pbThis, itemName))
+    user.pbHeldItemTriggerCheck(item.id, false)
+    user.pbSymbiosis
   end
 end

@@ -216,7 +216,7 @@ class Battle::Scene
           return cw.index
         end
       end
-      pbWait(1)
+      #pbWait(1)
     end
     pbShowAllDataboxes
   end

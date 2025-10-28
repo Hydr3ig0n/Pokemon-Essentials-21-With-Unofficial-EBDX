@@ -235,7 +235,7 @@ class BagWindowEBDX
     @selPocket = pocket
     # dispose sprites if already existing
     pbDisposeSpriteHash(@items)
-    @pname = Settings.bag_pocket_names[pocket]
+    @pname = Settings.bag_pocket_names[pocket-1] # H3 edit
     x = 0; y = 0
     # pocket bitmap
     pbmp = pbBitmap(@path + @cmdImg)

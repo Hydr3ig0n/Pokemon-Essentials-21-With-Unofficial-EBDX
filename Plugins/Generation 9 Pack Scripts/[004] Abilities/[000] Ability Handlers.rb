@@ -78,6 +78,15 @@ Battle::AbilityEffects::StatusCure.add(:INSOMNIA,
 
 Battle::AbilityEffects::StatusCure.copy(:INSOMNIA, :VITALSPIRIT)
 
+Battle::AbilityEffects::OnSwitchOut.add(:INSOMNIA,
+  proc { |ability, battler, endOfBattle|
+    next if ![:SLEEP, :DROWSY].include?(battler.status)
+    PBDebug.log("[Ability triggered] #{battler.pbThis}'s #{battler.abilityName}")
+    battler.status = :NONE
+  }
+)
+
+Battle::AbilityEffects::OnSwitchOut.copy(:INSOMNIA, :VITALSPIRIT)
 
 #===============================================================================
 # Magma Armor
@@ -97,6 +106,14 @@ Battle::AbilityEffects::StatusCure.add(:MAGMAARMOR,
       battler.battle.pbDisplay(msg)
     end
     battler.battle.pbHideAbilitySplash(battler)
+  }
+)
+
+Battle::AbilityEffects::OnSwitchOut.add(:MAGMAARMOR,
+  proc { |ability, battler, endOfBattle|
+    next if ![:FROZEN, :FROSTBITE].include?(battler.status)
+    PBDebug.log("[Ability triggered] #{battler.pbThis}'s #{battler.abilityName}")
+    battler.status = :NONE
   }
 )
 
@@ -413,7 +430,7 @@ Battle::AbilityEffects::OnSwitchIn.add(:NEUTRALIZINGGAS,
     battle.allBattlers.each do |b|
       if b.hasActiveItem?(:ABILITYSHIELD)
         itemname = GameData::Item.get(b.item).name
-        @battle.pbDisplay(_INTL("{1}'s Ability is protected by the effects of its {2}!",b.pbThis,itemname))
+        battle.pbDisplay(_INTL("{1}'s Ability is protected by the effects of its {2}!",b.pbThis,itemname))
         next
       end
       b.effects[PBEffects::SlowStart] = 0
@@ -578,5 +595,144 @@ Battle::AbilityEffects::DamageCalcFromUser.add(:TRANSISTOR,
   proc { |ability, user, target, move, mults, power, type|
     bonus = (Settings::MECHANICS_GENERATION >= 9) ? 1.3 : 1.5
     mults[:attack_multiplier] *= bonus if type == :ELECTRIC
+  }
+)
+
+#===============================================================================
+# Magician
+#===============================================================================
+# Records stolen item to ability bearer's stolen item data.
+#-------------------------------------------------------------------------------
+Battle::AbilityEffects::OnEndOfUsingMove.add(:MAGICIAN,
+  proc { |ability, user, targets, move, battle|
+    next if battle.futureSight
+    next if !move.pbDamagingMove?
+    next if user.item
+    next if user.wild?
+    targets.each do |b|
+      next if b.damageState.unaffected || b.damageState.substitute
+      next if !b.item
+      next if b.unlosableItem?(b.item) || user.unlosableItem?(b.item)
+      battle.pbShowAbilitySplash(user)
+      if b.hasActiveAbility?(:STICKYHOLD)
+        battle.pbShowAbilitySplash(b) if user.opposes?(b)
+        if Battle::Scene::USE_ABILITY_SPLASH
+          battle.pbDisplay(_INTL("{1}'s item cannot be stolen!", b.pbThis))
+        end
+        battle.pbHideAbilitySplash(b) if user.opposes?(b)
+        next
+      end
+      user.setStolenItem(b.item_id, b)
+      user.item = b.item
+      b.item = nil
+      b.effects[PBEffects::Unburden] = true if b.hasActiveAbility?(:UNBURDEN)
+      if battle.wildBattle? && !user.initialItem && user.item == b.initialItem
+        user.setInitialItem(user.item)
+        b.setInitialItem(nil)
+      end
+      if Battle::Scene::USE_ABILITY_SPLASH
+        battle.pbDisplay(_INTL("{1} stole {2}'s {3}!", user.pbThis,
+           b.pbThis(true), user.itemName))
+      else
+        battle.pbDisplay(_INTL("{1} stole {2}'s {3} with {4}!", user.pbThis,
+           b.pbThis(true), user.itemName, user.abilityName))
+      end
+      battle.pbHideAbilitySplash(user)
+      user.pbHeldItemTriggerCheck
+      break
+    end
+  }
+)
+
+#===============================================================================
+# Pickpocket
+#===============================================================================
+# Records pickpocketed item to ability bearer's stolen item data.
+#-------------------------------------------------------------------------------
+Battle::AbilityEffects::AfterMoveUseFromTarget.add(:PICKPOCKET,
+  proc { |ability, target, user, move, switched_battlers, battle|
+    next if target.wild?
+    next if switched_battlers.include?(user.index)
+    next if !move.contactMove?
+    next if user.effects[PBEffects::Substitute] > 0 || target.damageState.substitute
+    next if target.item || !user.item
+    next if user.unlosableItem?(user.item) || target.unlosableItem?(user.item)
+    battle.pbShowAbilitySplash(target)
+    if user.hasActiveAbility?(:STICKYHOLD)
+      battle.pbShowAbilitySplash(user) if target.opposes?(user)
+      if Battle::Scene::USE_ABILITY_SPLASH
+        battle.pbDisplay(_INTL("{1}'s item cannot be stolen!", user.pbThis))
+      end
+      battle.pbHideAbilitySplash(user) if target.opposes?(user)
+      battle.pbHideAbilitySplash(target)
+      next
+    end
+    target.setStolenItem(user.item_id, user)
+    target.item = user.item
+    user.item = nil
+    user.effects[PBEffects::Unburden] = true if user.hasActiveAbility?(:UNBURDEN)
+    if battle.wildBattle? && !target.initialItem && target.item == user.initialItem
+      target.setInitialItem(target.item)
+      user.setInitialItem(nil)
+    end
+    battle.pbDisplay(_INTL("{1} pickpocketed {2}'s {3}!", target.pbThis,
+       user.pbThis(true), target.itemName))
+    battle.pbHideAbilitySplash(target)
+    target.pbHeldItemTriggerCheck
+  }
+)
+
+#===============================================================================
+# Ball Fetch
+#===============================================================================
+# Records fetched Poke Ball to ability bearer's stolen item data.
+#-------------------------------------------------------------------------------
+Battle::AbilityEffects::EndOfRoundGainItem.add(:BALLFETCH,
+  proc { |ability, battler, battle|
+    next if battler.item
+    next if battle.first_poke_ball.nil?
+    battle.pbShowAbilitySplash(battler)
+    user.setStolenItem(battle.first_poke_ball)
+    battler.item = battle.first_poke_ball
+    battler.setInitialItem(battler.item) if !battler.initialItem
+    battle.first_poke_ball = nil
+    battle.pbDisplay(_INTL("{1} retrieved the thrown {2}!", battler.pbThis, battler.itemName))
+    battle.pbHideAbilitySplash(battler)
+    battler.pbHeldItemTriggerCheck
+  }
+)
+
+#===============================================================================
+# Pick Up
+#===============================================================================
+# Records picked up item to ability bearer's stolen item data.
+#-------------------------------------------------------------------------------
+Battle::AbilityEffects::EndOfRoundGainItem.add(:PICKUP,
+  proc { |ability, battler, battle|
+    next if battler.item
+    foundItem = nil
+    fromBattler = nil
+    use = 0
+    battle.allBattlers.each do |b|
+      next if b.index == battler.index
+      next if b.effects[PBEffects::PickupUse] <= use
+      foundItem   = b.effects[PBEffects::PickupItem]
+      fromBattler = b
+      use         = b.effects[PBEffects::PickupUse]
+    end
+    next if !foundItem
+    battle.pbShowAbilitySplash(battler)
+    battler.setStolenItem(foundItem, fromBattler)
+    battler.item = foundItem
+    fromBattler.effects[PBEffects::PickupItem] = nil
+    fromBattler.effects[PBEffects::PickupUse]  = 0
+    fromBattler.setRecycleItem(nil) if fromBattler.recycleItem == foundItem
+    if battle.wildBattle? && !battler.initialItem && fromBattler.initialItem == foundItem
+      battler.setInitialItem(foundItem)
+      fromBattler.setInitialItem(nil)
+    end
+    battle.pbDisplay(_INTL("{1} found one {2}!", battler.pbThis, battler.itemName))
+    battle.pbHideAbilitySplash(battler)
+    battler.pbHeldItemTriggerCheck
   }
 )

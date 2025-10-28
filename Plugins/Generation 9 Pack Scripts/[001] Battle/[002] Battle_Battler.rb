@@ -287,9 +287,11 @@ class Battle::Battler
   end
   
   #-----------------------------------------------------------------------------
-  # Aliased for new continuous ability checks.
+  # - Edited to trigger Commander ability
+  # - Edited to reset protean trigger
+  # - Edited to reset Judgement type
+  # - Edited to trigger skip Trace ability an Pokémon that has Ability Shield
   #-----------------------------------------------------------------------------
-  alias paldea_pbContinualAbilityChecks pbContinualAbilityChecks
   def pbContinualAbilityChecks(onSwitchIn = false)
     @battle.pbEndPrimordialWeather
     if hasActiveAbility?(:COMMANDER)
@@ -298,12 +300,28 @@ class Battle::Battler
     @proteanTrigger = false
     plateType = pbGetJudgmentType(@legendPlateType)
     @legendPlateType = plateType
-    if hasActiveAbility?(:TRACE) && hasActiveItem?(:ABILITYSHIELD)
-      @battle.pbShowAbilitySplash(self)
-      @battle.pbDisplay(_INTL("{1}'s Ability is protected by the effects of its Ability Shield!", pbThis))
-      @battle.pbHideAbilitySplash(self)
-    else
-      paldea_pbContinualAbilityChecks(onSwitchIn)
+    if hasActiveAbility?(:TRACE)
+      if hasActiveItem?(:ABILITYSHIELD) # Trace failed by its own Ability Shield
+        if onSwitchIn
+          @battle.pbShowAbilitySplash(self)
+          @battle.pbDisplay(_INTL("{1}'s Ability is protected by the effects of its Ability Shield!", pbThis))
+          @battle.pbHideAbilitySplash(self)
+        end
+      else
+        choices = @battle.allOtherSideBattlers(@index).select do |b|
+          next !b.hasActiveItem?(:ABILITYSHIELD) && (b.ability_id == :WONDERGUARD || !b.uncopyableAbility?)
+        end
+        if choices.length > 0
+          choice = choices[@battle.pbRandom(choices.length)]
+          @battle.pbShowAbilitySplash(self)
+          self.ability = choice.ability
+          @battle.pbDisplay(_INTL("{1} traced {2}'s {3}!", pbThis, choice.pbThis(true), choice.abilityName))
+          @battle.pbHideAbilitySplash(self)
+          if !onSwitchIn && (unstoppableAbility? || abilityActive?)
+            Battle::AbilityEffects.triggerOnSwitchIn(self.ability, self, @battle)
+          end
+        end
+      end
     end
     pbMirrorStatUpsOpposing
   end
@@ -363,26 +381,35 @@ class Battle::Battler
   #-----------------------------------------------------------------------------
   alias paldea_pbFaint pbFaint
   def pbFaint(showMessage = true)
-    commanderMsg = nil
+    commanderIdx = nil
     if @effects[PBEffects::Commander]
       pairedBattler = @battle.battlers[@effects[PBEffects::Commander][0]]
       if pairedBattler&.effects[PBEffects::Commander]
         if isCommander?
-          order = [pbThis, pairedBattler.pbThis(true)]
+          commanderMsg = _INTL("{1} comes out of {2}'s mouth!", pbThis, pairedBattler.pbThis(true))
+          commanderIdx = @index
         else
-          order = [pairedBattler.pbThis, pbThis(true)]
+          commanderMsg = _INTL("{1} comes out of {2}'s mouth!", pairedBattler.pbThis, pbThis(true))
+          commanderIdx = pairedBattler.index
           pairedBattler.effects[PBEffects::Commander] = nil
         end
-        commanderMsg = _INTL("{1} comes out of {2}'s mouth!", *order)
-        batSprite = @battle.scene.sprites["pokemon_#{pairedBattler.index}"]
       end
     end
     isFainted = @fainted
     paldea_pbFaint(showMessage)
     @battle.pbAddFaintedAlly(self) if !isFainted && @fainted
-    if commanderMsg
+    if commanderIdx
       @battle.pbDisplay(commanderMsg)
+      commander = @battle.battlers[commanderIdx]
+      return if commander.fainted?
+      batSprite = @battle.scene.sprites["pokemon_#{commanderIdx}"]
+      shadowSprite = @battle.scene.sprites["shadow_#{commanderIdx}"]
       batSprite.visible = true
+      if PluginManager.installed?("[DBK] Animated Pokémon System")
+        shadowSprite.visible = true if batSprite.shadowVisible
+      elsif commander.opposes?
+        shadowSprite.visible = true if commander.pokemon.species_data.shows_shadow?
+      end
     end
   end
   
@@ -432,17 +459,17 @@ class Battle::Battler
   
   
   #-----------------------------------------------------------------------------
-  # -Aliased so the Charge effect ends only after using an Electric-type move.
+  # -Aliased so the Charge effect ends only after using an Electric-type damaging move.
   # -Moves that cause electrocution heals Drowsiness.
   # -Moves that cause thawing heals Frostbite.
   #-----------------------------------------------------------------------------
   alias paldea_pbEffectsAfterMove pbEffectsAfterMove
   def pbEffectsAfterMove(user, targets, move, numHits)
     if Settings::MECHANICS_GENERATION >= 9
-      user.effects[PBEffects::Charge] = 0 if move.calcType == :ELECTRIC
+      user.effects[PBEffects::Charge] = 0 if move.damagingMove? && move.calcType == :ELECTRIC
     end
     if move.damagingMove?
-      if user.status == :DROWSY && move.electrocuteUser?
+      if move.electrocuteUser? && user.status == :DROWSY
         user.pbCureStatus(false)
         @battle.pbDisplay(_INTL("{1} was shocked wide awake!", user.pbThis))
       end
@@ -453,6 +480,7 @@ class Battle::Battler
       targets.each do |b|
         next if b.damageState.unaffected || b.damageState.substitute
         b.pbCureStatus if b.status == :DROWSY && move.electrocuteUser?
+        b.pbCureStatus if b.status == :SLEEP && Settings::ELECTROCUTE_MOVES_CURE_SLEEP && move.electrocuteUser?
         b.pbCureStatus if b.status == :FROSTBITE && move.thawsUser?  
       end
     end

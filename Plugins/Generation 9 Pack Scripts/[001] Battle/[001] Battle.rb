@@ -156,8 +156,9 @@ class Battle
   def pbEndOfRoundPhase
     paldea_pbEndOfRoundPhase
     allBattlers.each_with_index do |battler, i|
-	  battler.effects[PBEffects::AllySwitch]     = false
-	  battler.effects[PBEffects::BurningBulwark] = false
+      battler.effects[PBEffects::AllySwitch]     = false
+      battler.effects[PBEffects::BurningBulwark] = false
+      battler.effects[PBEffects::SilkTrap]       = false
       if Settings::MECHANICS_GENERATION >= 9
         battler.effects[PBEffects::Charge]   += 1 if battler.effects[PBEffects::Charge]     > 0
       end
@@ -404,7 +405,8 @@ class Battle::Scene
       cmdSelect  = -1
       cmdSummary = -1
       commands = []
-      commands[cmdSwitch  = commands.length] = _INTL("Switch In") if mode == 0 && modParty[idxParty].able?
+      commands[cmdSwitch  = commands.length] = _INTL("Switch In") if mode == 0 && modParty[idxParty].able? &&
+                                                                     (@battle.canSwitch || !canCancel)
       commands[cmdBoxes   = commands.length] = _INTL("Send to Boxes") if mode == 1
       commands[cmdSelect  = commands.length] = _INTL("Select") if mode == 2 && modParty[idxParty].fainted?
       commands[cmdSummary = commands.length] = _INTL("Summary")

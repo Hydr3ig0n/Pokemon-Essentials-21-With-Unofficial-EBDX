@@ -1,11 +1,84 @@
 Name = Generation 9 Pack
-Version = 3.2.5
+Version = 3.3.2
 Essentials = 21.1
 Requires = v21.1 Hotfixes,1.0.9
-Website = https://www.reliccastle.com/threads/5817/
+Website = https://www.eeveeexpo.com/threads/5817/
 Credits = Caruban
 
 # Change logs
+#############################################
+# 3.3.2
+#############################################
+# - Added function to restore party's original held items after battle
+# - Added function to send player's stolen
+# - Edited Egg generator and form inharitance from getFormOnEggCreation handler
+# - Edited HitTwoToFiveTimes and HitTenTimes move handlers to change rand() into @battle.pbRandom()
+# - Fixed Commander Ability to hide tatsugiri's shadow while actived
+# - Removed double space from Ability Shield's description text
+# - Fixed several Pokémon icon's woobling animation
+#############################################
+# 3.3.1
+#############################################
+# - Added Chilly Reception move failure check, so it fails if the Pokémon cannot switch and under Hail or Primodial weather
+# - Added Silk Trap effect in pbEndOfRoundPhase
+# - Fixed Charge effect to ends only after using an Electric-type damaging move
+# - Fixed Chilly Reception MoveFailureCheck AI method
+# - Fixed pbCanInflictStatus? to preventing fainted Pokémon from being inflicted by Drowsy and Frostbite
+# - Fixed Psycho Shift error when used on the Pokémon that has a status condition other than Drowsy and Frostbite
+# - Simplified Chilly Reception MoveEffectScore AI method
+# - Updated Hoopa getForm and onSetForm handler
+#############################################
+# 3.3.0
+#############################################
+# - Fixed the Psychic Noise effect on a fainted target
+# - Added Drowsy and Frostbite as a status that could be healed by abilities with an OnSwitchOut AbilityEffects handler.
+# - Added Drowsy and Frostbite to get_score_change_for_consuming_item AI method
+# - Added Drowsy and Frostbite to :cure_status_problem_by_switching_out AI ShouldSwitch handlers
+# - Added Frostbite to :thawing_move_when_frozen AI GeneralMoveScore handlers
+# - Added Frostbite to :thawing_move_against_frozen_target AI GeneralMoveAgainstTargetScore handlers
+# - Added :electrocuting_move_when_drowsy AI GeneralMoveScore handlers
+# - Added :electrocuting_move_against_drowsy_target AI GeneralMoveAgainstTargetScore handlers
+# - Added ELECTROCUTE_MOVES_CURE_SLEEP in the plugin Settings. If ELECTROCUTE_MOVES_CURE_SLEEP is set to true, moves with the "ElectrocuteUser" flag can wake the target from Sleep.
+#############################################
+# 3.2.9
+#############################################
+# - Added an ice defense buff algorithm for the AI during snow
+# - Fixed a bug in the pbPartyScreen for Revival Blessing
+# - Fixed the Opportunist message to display battler.pbThis instead of user.pbThis
+# - Fixed the Triple Arrows AI move's defense stat drop score
+#############################################
+# 3.2.8
+#############################################
+# - Changed Infernal Parade burn score "b" parameter to "target"
+# - Changed Matcha Gatcha burn score "b" parameter to "target"
+# - Changed Barb Barrage poison score "b" parameter to "target"
+# - Changed Ceaseless Edge's spike score method
+# - Changed Stone Axe's stealth rock score method
+# - Changed Chilly Reception's switch out score method
+# - Changed Frostbite AI handler to FrostbiteTarget
+# - Changed @battle to battle from Neutralizing Gas ability handler (line 416)
+# - Fixed Psyblade's AI move score algorithm
+# - Fixed Syrup Bomb's AI move score method id
+# - Removed "OHKO" check from Stone Axe's MoveFailureAgainstTargetCheck handler
+# - Updated Electro Shot AI move score
+# - Updated Upper Hand AI move score
+#############################################
+# 3.2.7
+#############################################
+# - Added the missing Sharpness ability to Gallade in PBS
+# - Added the missing Tatsugiri form on creation
+# - Fixed Basculegion's forms bug when generated in the wild
+# - Fixed Supersweet Syrup ability battler name into a lowercase
+# - Fixed Tail Shed AI MoveEffectScore handler
+# - Fixed typo in Mabosstiff follower sprite's name
+#############################################
+# 3.2.6
+#############################################
+# - Fixed Trace interaction with Ability Shield
+# - Changed Doodle and Dragon Cheer Battle::AI::Handlers from using batttle.allSameSideBattlers to ai.each_same_side_battler
+# - Moved rough_damage method from Battle::AI to Battle::AI::AIMove
+# - Moved zero_to_hero_ability ShouldSwitch handler outside of Battle::AI class
+#
 #############################################
 # 3.2.5
 #############################################

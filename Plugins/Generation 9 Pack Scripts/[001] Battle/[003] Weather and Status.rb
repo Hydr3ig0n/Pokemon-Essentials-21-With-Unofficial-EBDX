@@ -262,6 +262,7 @@ class Battle::Battler
   #-----------------------------------------------------------------------------
   alias paldea_pbCanInflictStatus? pbCanInflictStatus?
   def pbCanInflictStatus?(newStatus, user, showMessages, move = nil, ignoreStatus = false)
+    return false if fainted?
     originalStatus = newStatus
     case newStatus
     when :SLEEP  then newStatus = :DROWSY    if Settings::SLEEP_EFFECTS_CAUSE_DROWSY

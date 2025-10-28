@@ -13,7 +13,7 @@ Battle::AbilityEffects::OnSwitchIn.add(:SUPERSWEETSYRUP,
   proc { |ability, battler, battle, switch_in|
     next if battler.ability_triggered?
     battle.pbShowAbilitySplash(battler)
-    battle.pbDisplay(_INTL("A supersweet aroma is wafting from the syrup covering {1}!", battler.pbThis))
+    battle.pbDisplay(_INTL("A supersweet aroma is wafting from the syrup covering {1}!", battler.pbThis(true)))
     battle.allOtherSideBattlers(battler.index).each do |b|
       next if !b.near?(battler) || b.fainted?
       if b.itemActive? && !b.hasActiveAbility?(:CONTRARY) && b.effects[PBEffects::Substitute] == 0
