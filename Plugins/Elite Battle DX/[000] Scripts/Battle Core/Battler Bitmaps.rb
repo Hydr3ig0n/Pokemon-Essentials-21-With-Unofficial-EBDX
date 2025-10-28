@@ -197,9 +197,9 @@ def pbCheckPokemonBitmapFiles(params)
     end
     subdir = "Front"
     if tshiny  && back
-      subdir= "BackShiny"
+      subdir= "Back shiny"
     elsif tshiny 
-      subdir = "FrontShiny"
+      subdir = "Front shiny"
     elsif back
       subdir = "Back"
     end

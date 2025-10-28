@@ -70,9 +70,9 @@ module EliteBattle
   ENEMY_FRONT_Y_OFFSET = 0
 
   # if True, animated sprites (in Graphics/EDBX/Battlers) are checked first in battle. If false, static sprites are checked first.
-  PRIORITIZE_ANIMATED_SPRITES = true
+  PRIORITIZE_ANIMATED_SPRITES = false
   #if True, when the female sprite is not found in Graphics/EBDX/Battlers/Front(Back or whatever)/Female, the regular sprite will be used instead. If using regular sprites _female is used instead
-  PRIORITIZE_REGULAR_SPRITES = true
+  PRIORITIZE_REGULAR_SPRITES = false
 
   # ZUD plugins clear cached data so EBDX gets stuck. Setting this to true skips the cache and directly loads the game.
   SKIP_CACHED_DATA = false
