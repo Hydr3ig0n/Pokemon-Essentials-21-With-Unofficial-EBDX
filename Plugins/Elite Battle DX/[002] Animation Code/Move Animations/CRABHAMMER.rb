@@ -81,7 +81,7 @@ EliteBattle.defineMoveAnimation(:CRABHAMMER) do
       fp["frame"].zoom_y += 0.1*@targetSprite.zoom_y
       fp["frame"].angle += 2
     end
-    for l in 0...24
+    for l in 0...10 # 24
       next if i < 10
       next if l>((i-10)*8)
       cx, cy = @targetSprite.getCenter(true)

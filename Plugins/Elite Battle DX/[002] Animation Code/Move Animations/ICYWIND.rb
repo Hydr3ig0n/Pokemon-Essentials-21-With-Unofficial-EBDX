@@ -1,4 +1,10 @@
 #-------------------------------------------------------------------------------
+#  Powder Snow
+#-------------------------------------------------------------------------------
+EliteBattle.defineMoveAnimation(:POWDERSNOW) do
+  EliteBattle.playMoveAnimation(:ICYWIND, @scene, @userIndex, @targetIndex, @hitNum, @multiHit, nil, false)
+end
+#-------------------------------------------------------------------------------
 #  Icy Wind
 #-------------------------------------------------------------------------------
 EliteBattle.defineMoveAnimation(:ICYWIND) do
